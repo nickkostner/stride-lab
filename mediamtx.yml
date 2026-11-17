@@ -1,0 +1,15 @@
+# Only the settings Stride Lab needs. Everything else uses MediaMTX defaults.
+webrtc: yes
+webrtcAddress: :8889
+rtsp: no
+rtmp: no
+hls: no
+srt: no
+
+paths:
+  treadmill:
+    # Official Wyze RTSP firmware (v2, v3, Pan): rtsp://USER:PASS@CAMERA_IP/live
+    # wz_mini_hacks:                             rtsp://USER:PASS@CAMERA_IP:8554/video1_unicast
+    source: rtsp://USER:PASS@192.168.1.50/live
+    sourceOnDemand: no
+    # Wyze sends H.264, which every browser can play over WebRTC without re-encoding.

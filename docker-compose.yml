@@ -1,0 +1,48 @@
+# Stride Lab Live: camera bridge + web app, all on the computer plugged into the TV.
+# Pick ONE camera profile:
+#   docker compose --profile wyze up -d   # any Wyze cam, via your Wyze account (cloud login, local video)
+#   docker compose --profile rtsp up -d   # Wyze v2/v3 on RTSP firmware or wz_mini_hacks, or any RTSP camera
+# Then open http://localhost:8080 on this computer, fullscreen on the TV.
+#
+# network_mode: host keeps WebRTC simple (no NAT between the bridge and the browser).
+# It needs Docker on Linux. Docker Desktop on Mac/Windows only supports it in recent versions with host networking enabled.
+
+services:
+  web:
+    image: nginx:1.27-alpine
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  # Option A: docker-wyze-bridge. Logs into your Wyze account to find the camera,
+  # then pulls video directly over your LAN. Works with most Wyze models, including v4.
+  # The original mrlt8 image is no longer updated; if login fails, switch the image to a
+  # maintained fork (for example idisposable/docker-wyze-bridge) and keep the same settings.
+  wyze-bridge:
+    profiles: [wyze]
+    image: mrlt8/wyze-bridge:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - WYZE_EMAIL=${WYZE_EMAIL}
+      - WYZE_PASSWORD=${WYZE_PASSWORD}
+      - API_ID=${WYZE_API_ID}
+      - API_KEY=${WYZE_API_KEY}
+      - WB_IP=${HOST_IP}            # this computer's LAN IP, for WebRTC
+      - WB_AUTH=False               # LAN-only; do not expose these ports to the internet
+      - QUALITY=HD180               # full-resolution feed at a higher bitrate: sharper feet
+      - FILTER_NAMES=${WYZE_CAMERA_NAME}
+
+  # Option B: MediaMTX pulling an RTSP stream (official Wyze RTSP firmware, wz_mini_hacks,
+  # or any other RTSP camera). Lighter, no cloud login. Edit the source in mediamtx.yml.
+  mediamtx:
+    profiles: [rtsp]
+    image: bluenviron/mediamtx:1.9.3
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - MTX_WEBRTCADDITIONALHOSTS=${HOST_IP}
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro

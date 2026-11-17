@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Stride Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lab-report sheet. Top bar with tabs; analyser = viewer + score left, metric table right; teardown = long-form reading column. */
+:root {
+  --bg: #eef1f3; --panel: #ffffff; --ink: #15212b; --muted: #5b6874; --line: #d5dce2;
+  --accent: #0b7a75; --accent-soft: #d7efed; --bone: #d1366f;
+  --good: #1f8a4c; --good-bg: #dcf2e4; --watch: #a86600; --watch-bg: #fbedd3; --fix: #c0392b; --fix-bg: #fadcd8;
+  --stage: #1b2731; --stage-ink: #dfe7ec;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f161c; --panel: #17212a; --ink: #e3eaef; --muted: #93a2ae; --line: #2a3742;
+  --accent: #3cc2b9; --accent-soft: #143634; --bone: #ff6b9e;
+  --good: #5bd08a; --good-bg: #16331f; --watch: #f0b450; --watch-bg: #3a2b10; --fix: #ff7a6b; --fix-bg: #3d1c18;
+  --stage: #0a1015; --stage-ink: #dfe7ec; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f161c; --panel: #17212a; --ink: #e3eaef; --muted: #93a2ae; --line: #2a3742;
+  --accent: #3cc2b9; --accent-soft: #143634; --bone: #ff6b9e;
+  --good: #5bd08a; --good-bg: #16331f; --watch: #f0b450; --watch-bg: #3a2b10; --fix: #ff7a6b; --fix-bg: #3d1c18;
+  --stage: #0a1015; --stage-ink: #dfe7ec; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.top { border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+header.top .wrap { display: flex; align-items: center; gap: 24px; padding-block: 10px; flex-wrap: wrap; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; display: flex; align-items: baseline; gap: 8px; }
+.brand small { font-family: var(--f-mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: none; font-weight: 400; }
+nav.tabs { display: flex; gap: 4px; margin-left: auto; }
+nav.tabs a { font-family: var(--f-display); font-size: 17px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 6px; }
+nav.tabs a[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+nav.tabs a:focus-visible, button:focus-visible, input:focus-visible, label.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+main { padding-block: 24px 64px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; letter-spacing: .01em; text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(30px, 4vw, 44px); }
+h2 { font-size: 26px; }
+h3 { font-size: 19px; }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; }
+.muted { color: var(--muted); }
+
+/* Intake */
+.intake { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: stretch; margin-bottom: 24px; }
+.drop { display: flex; flex-direction: column; justify-content: center; gap: 10px; border: 2px dashed var(--line); border-radius: 10px; padding: 22px; background: var(--panel); cursor: pointer; min-height: 170px; }
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop strong { font-family: var(--f-display); font-size: 24px; font-weight: 600; }
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.field input, .field select { font: 15px var(--f-mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 110px; }
+.guide { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.guide ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.msg { font-size: 14px; }
+.msg.err { color: var(--fix); }
+
+/* Report */
+.banner { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 8px; background: var(--watch-bg); color: var(--ink); font-size: 14px; margin-bottom: 16px; }
+.banner b { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--watch); }
+.report { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+.stage { position: relative; background: var(--stage); border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; max-width: 100%; }
+.stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.controls { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+button { font: 600 14px var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 7px 14px; border-radius: 6px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+input[type=range] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.time { font: 12px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; margin-top: 18px; }
+.ring { width: 112px; height: 112px; }
+.ring text { font-family: var(--f-display); fill: var(--ink); }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; }
+.fact .v { font: 600 24px var(--f-display); font-variant-numeric: tabular-nums; }
+.fact .k { font-size: 12px; color: var(--muted); }
+
+table.metrics { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.metrics th { text-align: left; font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 8px 8px; border-bottom: 1px solid var(--line); }
+table.metrics td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.metrics td.val { font: 500 16px var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+table.metrics td.rng { font: 12px var(--f-mono); color: var(--muted); white-space: nowrap; }
+table.metrics tr.sel td { background: var(--accent-soft); }
+table.metrics tbody tr { cursor: pointer; }
+.pill { display: inline-block; font: 600 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; }
+.pill.good { color: var(--good); background: var(--good-bg); }
+.pill.watch { color: var(--watch); background: var(--watch-bg); }
+.pill.fix { color: var(--fix); background: var(--fix-bg); }
+.pill.na { color: var(--muted); background: var(--bg); }
+.detail { margin-top: 14px; padding: 14px; border-radius: 8px; background: var(--bg); display: grid; gap: 8px; font-size: 14px; }
+.detail ul { margin: 0; padding-left: 18px; }
+
+.wide { grid-column: 1 / -1; }
+.strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.strip figure { margin: 0; flex: 0 0 200px; }
+.strip canvas { width: 200px; height: 150px; border-radius: 6px; background: var(--stage); display: block; }
+.strip figcaption { font: 12px var(--f-mono); color: var(--muted); margin-top: 4px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { font: 11px var(--f-mono); fill: var(--muted); }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.drills { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.drill { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+.drill ul { margin: 0; padding-left: 18px; font-size: 14px; }
+
+/* Teardown */
+.doc { max-width: 760px; display: grid; gap: 28px; }
+.doc section { display: grid; gap: 10px; }
+.doc p, .doc li { max-width: 68ch; }
+.doc ul, .doc ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.conf { font: 600 10px var(--f-mono); letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; vertical-align: 1px; margin-right: 4px; }
+.conf.c { background: var(--good-bg); color: var(--good); }
+.conf.l { background: var(--watch-bg); color: var(--watch); }
+.conf.g { background: var(--fix-bg); color: var(--fix); }
+.tbl { overflow-x: auto; }
+.tbl table { border-collapse: collapse; font-size: 14px; min-width: 560px; width: 100%; }
+.tbl th, .tbl td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+pre.mermaid { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+a { color: var(--accent); }
+
+@media (max-width: 860px) {
+  .intake, .report { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  table.metrics td.rng, table.metrics th.rng { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand">Stride Lab <small>side-on running form analysis</small></div>
+  <nav class="tabs"><a href="#analyse" id="tab-analyse">Analyse</a><a href="#teardown" id="tab-teardown">How Ochy works</a><a href="../">Live (TV)</a></nav>
+</div></header>
+
+<main class="wrap">
+<div id="view-analyse">
+  <div class="intake">
+    <label class="drop" id="drop">
+      <span class="eyebrow">Step 1 · Upload</span>
+      <strong>Drop a 5–10 second side-on running clip</strong>
+      <span class="muted">MP4 or WebM work best. The video is analysed in your browser and never leaves your device.</span>
+      <input type="file" id="file" accept="video/*">
+      <div class="row">
+        <span class="field"><label for="heightCm">Your height (cm)</label><input id="heightCm" type="number" min="120" max="220" value="178"></span>
+        <span class="field"><label for="fps">Sampling</label><select id="fps"><option value="30">30 fps</option><option value="60">60 fps (slower)</option></select></span>
+      </div>
+      <div class="progress" hidden id="prog"><i></i></div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+    </label>
+    <div class="guide">
+      <span class="eyebrow">Filming guide</span>
+      <ol>
+        <li>Phone in landscape, on a tripod or shelf at hip height.</li>
+        <li>Stand it 3–4 m away, square to the side of the runner.</li>
+        <li>Whole body in frame, head to feet, the whole time. A treadmill is ideal.</li>
+        <li>Run at a steady pace for at least 6 strides before you start the clip.</li>
+        <li>Fitted clothes and good light help the pose model see your joints.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="banner" id="exampleBanner"><b>Example</b><span>This report comes from a simulated runner at 164 spm who overstrides a little. Upload a clip to replace it with your own.</span></div>
+
+  <div class="report">
+    <div class="panel">
+      <div class="stage" id="stage"><video id="video" playsinline muted></video><canvas id="overlay"></canvas></div>
+      <div class="controls">
+        <button id="play" class="primary">Play</button>
+        <select id="speed" aria-label="Playback speed"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25" selected>0.25×</option></select>
+        <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Scrub">
+        <span class="time" id="time">0.00 s</span>
+      </div>
+      <div class="summary">
+        <svg class="ring" viewBox="0 0 120 120" id="ring" aria-label="Overall form score"></svg>
+        <div class="facts" id="facts"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="justify-content: space-between; margin-bottom: 10px;"><h2>Form metrics</h2><span class="eyebrow">Tap a row for coaching</span></div>
+      <table class="metrics"><thead><tr><th>Metric</th><th style="text-align:right">You</th><th class="rng">Target</th><th>Status</th></tr></thead><tbody id="mbody"></tbody></table>
+      <div class="detail" id="detail"></div>
+    </div>
+
+    <div class="panel wide">
+      <div class="row" style="justify-content: space-between; margin-bottom: 10px;"><h2>Landing frames</h2><span class="eyebrow" id="stripNote"></span></div>
+      <div class="strip" id="strip"></div>
+    </div>
+
+    <div class="panel wide chart">
+      <div class="row" style="justify-content: space-between; margin-bottom: 6px;"><h2>Stride trace</h2>
+        <div class="legend"><span><i style="background: var(--accent)"></i>Hip height (cm, centred)</span><span><i style="background: var(--bone)"></i>Left knee bend</span><span><i style="background: var(--muted)"></i>Right knee bend</span><span>▲ landing</span></div></div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="panel wide">
+      <h2 style="margin-bottom: 12px;">Your drill plan</h2>
+      <div class="drills" id="drills"></div>
+    </div>
+  </div>
+</div>
+
+<div id="view-teardown" hidden>
+  <article class="doc">
+    <section>
+      <span class="eyebrow">Product teardown · November 2026</span>
+      <h1>How Ochy works</h1>
+      <p>Ochy is a running-form app from Rennes, France, founded in 2021. You film about 10 seconds of yourself running, and it returns joint angles, a score and drills in under a minute. Tags show how sure I am: <span class="conf c">CERTAIN</span> means a public source says it, <span class="conf l">LIKELY</span> is a strong inference, and <span class="conf g">GUESS</span> fills a gap.</p>
+    </section>
+
+    <section>
+      <h2>What the user gets</h2>
+      <ul>
+        <li><span class="conf c">CERTAIN</span>Record with a phone, no wearables. Results in under 60 s from about a 10 s clip, side or back view, on road, track or treadmill.</li>
+        <li><span class="conf c">CERTAIN</span>Feedback on foot strike, posture, knee alignment, arm carriage, head position, cadence and pelvic stability, plus exercises for each problem.</li>
+        <li><span class="conf c">CERTAIN</span>Strict filming rules (clip length, framing). Reviewers say following them makes the difference.</li>
+        <li><span class="conf l">LIKELY</span>About 15 metrics, including cadence and ground contact time. That figure comes from a competitor's page.</li>
+        <li><span class="conf c">CERTAIN</span>Free download with a paywall. Part of the analysis is greyed out until you pay.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Business model</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Channel</th><th>What is known</th><th>Confidence</th></tr></thead>
+        <tbody>
+          <tr><td>Consumer in-app</td><td>Single analysis about €6.99; monthly about €6.95–$12.99; yearly about €49.99. Prices vary by market and promotion.</td><td><span class="conf c">CERTAIN</span></td></tr>
+          <tr><td>Coach and club tiers</td><td>2023 pitch listed Runner €9, Coach €29 and Sports Club €199 per month.</td><td><span class="conf l">LIKELY</span> may be outdated</td></tr>
+          <tr><td>Retail B2B2C</td><td>Free at-home gait analysis on SportsShoes.com, used to recommend shoes.</td><td><span class="conf c">CERTAIN</span></td></tr>
+          <tr><td>Brand partnerships</td><td>Built into Adidas adiClub. Partnered with England Athletics.</td><td><span class="conf c">CERTAIN</span></td></tr>
+        </tbody>
+      </table></div>
+      <p><span class="conf l">LIKELY</span>The money is in B2B. A shoe retailer that turns gait analysis into a shoe recommendation pays far more than a runner who buys one analysis. The consumer app mostly feeds those partnerships with data and credibility.</p>
+    </section>
+
+    <section>
+      <h2>The pipeline behind it</h2>
+      <p><span class="conf l">LIKELY</span>Every app in this category runs the same five stages. Ochy's value is in tuning stages 3–5 and in the filming rules that keep stage 1 clean.</p>
+<pre class="mermaid">
+flowchart LR
+  A[10 s phone clip] --> B[2D pose estimation<br/>33 keypoints per frame]
+  B --> C[Clean-up<br/>gap fill, L/R swap fix, smoothing]
+  C --> D[Gait events<br/>foot contact, toe-off, midstance]
+  D --> E[Metrics at events<br/>angles, distances, timing]
+  E --> F[Rules vs target ranges<br/>score + drills]
+</pre>
+      <ol>
+        <li><span class="conf l">LIKELY</span><b>Pose estimation.</b> A neural network finds the joints in each frame. Off-the-shelf models (MediaPipe, MoveNet, RTMPose) are good enough. Ochy says it uses its own computer-vision AI <span class="conf g">GUESS</span> on cloud GPUs, given the upload-then-wait flow.</li>
+        <li><span class="conf c">CERTAIN</span><b>Clean-up.</b> In side view the far leg is hidden, so models swap left and right legs. You have to fix that, or every per-leg number is wrong. This clone checks which labelling keeps each leg continuous from the previous frame.</li>
+        <li><span class="conf c">CERTAIN</span><b>Gait events.</b> Initial contact is the frame where a foot reaches ground level. Step rhythm comes from the pelvis bouncing once per step.</li>
+        <li><span class="conf c">CERTAIN</span><b>Metrics.</b> Shin angle, knee bend and foot angle at landing; how far the foot lands ahead of the hips; trunk lean; vertical oscillation; ground contact time. Pixels become centimetres by scaling to your height.</li>
+        <li><span class="conf l">LIKELY</span><b>Rules and coaching.</b> Each metric gets good, watch or fix against a target range, and each flag maps to a fixed drill list. A language model may write the prose <span class="conf g">GUESS</span>, but the judgement is rules.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Where this clone stands</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Area</th><th>Ochy</th><th>Stride Lab (this page)</th></tr></thead>
+        <tbody>
+          <tr><td>Pose model</td><td>Their own model, server-side <span class="conf g">GUESS</span></td><td>MediaPipe Pose Landmarker (full), runs in your browser</td></tr>
+          <tr><td>Views</td><td>Side and back</td><td>Side only. Back view, for knee valgus and pelvic drop, is not built yet.</td></tr>
+          <tr><td>Metrics</td><td>About 15</td><td>9 scored, plus foot strike type and left/right contact balance</td></tr>
+          <tr><td>Privacy</td><td>Video uploaded</td><td>Video never leaves the device</td></tr>
+          <tr><td>Accounts, history, payments</td><td>Yes</td><td>No. Needs a backend.</td></tr>
+          <tr><td>Validation</td><td>Claims lab-grade accuracy</td><td>Not validated. Tested only on simulated runners.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h2>What it would take to compete</h2>
+      <ul>
+        <li><span class="conf c">CERTAIN</span>The algorithm is not the moat. Everything on the Analyse tab took a few hundred lines on top of a free model.</li>
+        <li><span class="conf l">LIKELY</span>The moat is validation data (clips paired with lab motion capture, to prove accuracy) and distribution deals like Adidas and England Athletics.</li>
+        <li><span class="conf l">LIKELY</span>The easiest opening is a niche they serve badly: coaches who need progress over time, a back-view analysis, or tracking a runner back from injury.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Sources</h2>
+      <ul>
+        <li><a href="https://apps.apple.com/us/app/ochy-running-form-analysis/id1531481638" target="_blank" rel="noopener">App Store listing</a></li>
+        <li><a href="https://www.sportsshoes.com/advice/running-hub/newsroom/ochy-launch-gait-analysis" target="_blank" rel="noopener">SportsShoes.com partnership</a></li>
+        <li><a href="https://www.englandathletics.org/about-us/our-partners/ochy/" target="_blank" rel="noopener">England Athletics partnership</a></li>
+        <li><a href="https://insider.fitt.co/press-release/ochy-partners-with-england-athletics-to-bring-ai-powered-gait-analysis-to-england/" target="_blank" rel="noopener">Fitt Insider press release</a></li>
+        <li><a href="https://startupnight.net/startups/2023/ochy" target="_blank" rel="noopener">Startup Night 2023 profile (tier pricing)</a></li>
+        <li><a href="https://apptail.io/app/running-gait-analysis-ochy-Lztd/belgium" target="_blank" rel="noopener">Apptail store snapshot (EU pricing)</a></li>
+        <li><a href="https://kneeguard.pages.dev/vs/ochy.html" target="_blank" rel="noopener">Competitor comparison</a>, which is biased</li>
+      </ul>
+    </section>
+  </article>
+</div>
+</main>
+
+<script src="../gait.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const G = window.Gait;
+  const BONES = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
+  const LEFT = new Set([13,15,25,27,29,31]);
+  let state = null; // { result, scored, source: 'example' | 'video', W, H }
+  let selected = 'shinDeg';
+
+  // ---------- Routing ----------
+  function route() {
+    const v = location.hash === '#teardown' ? 'teardown' : 'analyse';
+    $('view-analyse').hidden = v !== 'analyse';
+    $('view-teardown').hidden = v !== 'teardown';
+    $('tab-analyse').toggleAttribute('aria-current', v === 'analyse');
+    $('tab-teardown').toggleAttribute('aria-current', v === 'teardown');
+    if (v === 'analyse') $('tab-analyse').setAttribute('aria-current', 'page'); else $('tab-teardown').setAttribute('aria-current', 'page');
+  }
+  addEventListener('hashchange', route); route();
+
+  // ---------- Drawing ----------
+  const fmt = (v, dp) => (Number.isFinite(v) ? v.toFixed(dp) : '—');
+  function drawPose(ctx, p, W, H, sx, sy, ox, oy, highlight) {
+    const X = (q) => ox + q.x * sx, Y = (q) => oy + q.y * sy;
+    ctx.lineCap = 'round'; ctx.lineWidth = Math.max(2, 4 * sx);
+    for (const [a, b] of BONES) {
+      ctx.strokeStyle = LEFT.has(a) || LEFT.has(b) ? css('--bone') : '#9fb3c1';
+      ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke();
+    }
+    const head = p[0], shm = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
+    const ear = { x: (p[7].x + p[8].x) / 2, y: (p[7].y + p[8].y) / 2 };
+    const hr = Math.max(6, Math.hypot(head.x - ear.x, head.y - ear.y) * 1.3) * sx;
+    ctx.strokeStyle = '#9fb3c1'; ctx.beginPath(); ctx.moveTo(X(shm), Y(shm)); ctx.lineTo(X(ear), Y(ear) + hr / sx * sy * 0.8); ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(ear), Y(ear), hr, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    for (const k of [11,13,15,23,25,27,29,31,12,14,16,24,26,28,30,32]) { ctx.beginPath(); ctx.arc(X(p[k]), Y(p[k]), Math.max(2.5, 4 * sx), 0, Math.PI * 2); ctx.fill(); }
+    if (highlight) { ctx.fillStyle = css('--accent'); ctx.beginPath(); ctx.arc(X(highlight), Y(highlight), Math.max(5, 8 * sx), 0, Math.PI * 2); ctx.fill(); }
+  }
+  function frameAt(t) {
+    const fr = state.result.frames; let lo = 0, hi = fr.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (fr[m].t < t) lo = m + 1; else hi = m; }
+    return lo;
+  }
+  function fitRect(cw, ch, W, H) { const s = Math.min(cw / W, ch / H); return { s, ox: (cw - W * s) / 2, oy: (ch - H * s) / 2 }; }
+
+  const overlay = $('overlay'), octx = overlay.getContext('2d'), video = $('video');
+  let clock = 0, playing = false, lastTs = 0;
+  function duration() { const fr = state.result.frames; return fr[fr.length - 1].t; }
+  function renderOverlay() {
+    if (!state) return;
+    const r = overlay.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    if (overlay.width !== Math.round(r.width * dpr)) { overlay.width = Math.round(r.width * dpr); overlay.height = Math.round(r.height * dpr); }
+    const cw = overlay.width, ch = overlay.height; octx.clearRect(0, 0, cw, ch);
+    const { s, ox, oy } = fitRect(cw, ch, state.W, state.H);
+    const t = state.source === 'video' ? video.currentTime : clock;
+    const i = frameAt(t), f = state.result.frames[i];
+    if (state.source === 'example') {
+      octx.strokeStyle = 'rgba(223,231,236,.25)'; octx.lineWidth = 2;
+      const gy = oy + state.result.ground * s; octx.beginPath(); octx.moveTo(0, gy + 2); octx.lineTo(cw, gy + 2); octx.stroke();
+    }
+    const c = state.result.contacts.find((c) => Math.abs(c.frame - i) <= 1);
+    if (f && f.p) drawPose(octx, f.p, state.W, state.H, s, s, ox, oy, c ? f.p[c.leg === 'Left' ? 27 : 28] : null);
+    if (c) { octx.fillStyle = css('--accent'); octx.font = `600 ${Math.round(14 * dpr)}px ${css('--f-mono')}`; octx.fillText(`${c.leg.toUpperCase()} LANDING · shin ${fmt(c.shinDeg, 0)}°`, 12 * dpr, 22 * dpr); }
+    $('time').textContent = t.toFixed(2) + ' s';
+    if (!scrubbing) $('scrub').value = Math.round((t / duration()) * 1000);
+  }
+  function tick(ts) {
+    if (playing && state.source === 'example') {
+      const dt = lastTs ? (ts - lastTs) / 1000 : 0; clock += dt * parseFloat($('speed').value);
+      if (clock > duration()) clock = 0;
+    }
+    lastTs = ts; renderOverlay();
+    if (playing) requestAnimationFrame(tick);
+  }
+  function setPlaying(p) {
+    playing = p; $('play').textContent = p ? 'Pause' : 'Play'; lastTs = 0;
+    if (state.source === 'video') { video.playbackRate = parseFloat($('speed').value); p ? video.play() : video.pause(); }
+    if (p) requestAnimationFrame(tick); else renderOverlay();
+  }
+  $('play').addEventListener('click', () => setPlaying(!playing));
+  $('speed').addEventListener('change', () => { video.playbackRate = parseFloat($('speed').value); });
+  let scrubbing = false;
+  $('scrub').addEventListener('input', (e) => {
+    scrubbing = true; const t = (e.target.value / 1000) * duration();
+    if (state.source === 'video') video.currentTime = t; else clock = t;
+    renderOverlay(); scrubbing = false;
+  });
+  video.addEventListener('seeked', renderOverlay);
+  video.addEventListener('ended', () => { video.currentTime = 0; video.play(); });
+  addEventListener('resize', renderOverlay);
+
+  // ---------- Report ----------
+  function ring(score) {
+    const r = 50, c = 2 * Math.PI * r, frac = Number.isFinite(score) ? score / 100 : 0;
+    const col = score >= 80 ? css('--good') : score >= 60 ? css('--watch') : css('--fix');
+    $('ring').innerHTML = `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${css('--line')}" stroke-width="10"/>
+      <circle cx="60" cy="60" r="${r}" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c * frac} ${c}" transform="rotate(-90 60 60)"/>
+      <text x="60" y="66" text-anchor="middle" font-size="36" font-weight="700">${Number.isFinite(score) ? score : '—'}</text>
+      <text x="60" y="86" text-anchor="middle" font-size="12" fill="${css('--muted')}" style="fill: var(--muted)">FORM SCORE</text>`;
+  }
+  function renderReport() {
+    const { result, scored } = state, m = result.metrics, q = result.quality;
+    ring(scored.overall);
+    $('facts').innerHTML = [
+      [fmt(m.cadence, 0), 'Cadence (spm)'], [m.strike, 'Foot strike'], [fmt(m.gctBalance, 0) + ' / ' + fmt(100 - m.gctBalance, 0), 'L / R contact %'],
+      [q.steps, 'Landings found'], [Math.round(q.detected * 100) + '%', 'Frames with pose'], [result.dir > 0 ? '→' : '←', 'Running direction'],
+    ].map(([v, k]) => `<div class="fact"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+    $('mbody').innerHTML = scored.items.map((it) => `<tr data-k="${it.key}" class="${it.key === selected ? 'sel' : ''}" tabindex="0">
+      <td>${it.label}</td><td class="val">${fmt(it.value, it.dp)}<span class="muted" style="font-size:12px"> ${it.unit}</span></td>
+      <td class="rng">${it.good[0]}–${it.good[1]}</td><td><span class="pill ${it.status}">${{ good: 'Good', watch: 'Watch', fix: 'Fix', na: 'n/a' }[it.status]}</span></td></tr>`).join('');
+    $('mbody').querySelectorAll('tr').forEach((tr) => {
+      const pick = () => { selected = tr.dataset.k; renderReport(); };
+      tr.addEventListener('click', pick); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    });
+    const it = scored.items.find((i) => i.key === selected) || scored.items[0];
+    $('detail').innerHTML = `<h3>${it.label}</h3><p>${it.what}</p>${it.note ? `<p><b>${it.note}</b></p>` : ''}
+      ${it.status !== 'good' && it.status !== 'na' ? `<ul>${it.fix.map((f) => `<li>${f}</li>`).join('')}</ul>` : '<p class="muted">In range. Nothing to fix here.</p>'}`;
+    const flagged = scored.items.filter((i) => i.status === 'fix' || i.status === 'watch').sort((a, b) => (a.status === 'fix' ? -1 : 1) - (b.status === 'fix' ? -1 : 1));
+    $('drills').innerHTML = flagged.length ? flagged.map((i) => `<div class="drill"><span class="pill ${i.status}" style="justify-self:start">${i.status === 'fix' ? 'Priority' : 'Next'}</span><h3>${i.label}</h3><ul>${i.fix.map((f) => `<li>${f}</li>`).join('')}</ul></div>`).join('')
+      : '<p class="muted">Every metric is in range. Keep doing what you are doing.</p>';
+    renderChart(); renderOverlay();
+  }
+
+  function renderChart() {
+    const { series, contacts } = state.result, W = 1000, H = 220, pad = { l: 40, r: 40, t: 14, b: 26 };
+    const t = series.t, T = t[t.length - 1] || 1;
+    const x = (v) => pad.l + (v / T) * (W - pad.l - pad.r);
+    const hy = series.hipY.filter(Number.isFinite), hmax = Math.max(4, ...hy.map(Math.abs));
+    const yH = (v) => pad.t + (1 - (v / hmax + 1) / 2) * (H - pad.t - pad.b) ;
+    // Hip y in image coords grows downward, so negate to plot "up".
+    const yK = (v) => pad.t + (1 - v / 130) * (H - pad.t - pad.b);
+    const path = (arr, fy) => { let d = '', pen = false; arr.forEach((v, i) => { if (!Number.isFinite(v)) { pen = false; return; } d += (pen ? 'L' : 'M') + x(t[i]).toFixed(1) + ' ' + fy(v).toFixed(1); pen = true; }); return d; };
+    let grid = '';
+    for (let s = 0; s <= Math.floor(T); s++) grid += `<line x1="${x(s)}" x2="${x(s)}" y1="${pad.t}" y2="${H - pad.b}" stroke="${css('--line')}"/><text x="${x(s)}" y="${H - 8}" text-anchor="middle">${s}s</text>`;
+    for (const v of [0, 45, 90]) grid += `<text x="${W - pad.r + 6}" y="${yK(v) + 4}">${v}°</text>`;
+    grid += `<text x="${pad.l - 6}" y="${yH(hmax) + 10}" text-anchor="end">+${hmax.toFixed(0)}</text><text x="${pad.l - 6}" y="${yH(-hmax)}" text-anchor="end">−${hmax.toFixed(0)}</text>`;
+    const marks = contacts.map((c) => `<path d="M${x(c.t) - 5} ${H - pad.b} l5 -8 l5 8z" fill="${c.leg === 'Left' ? css('--bone') : css('--muted')}"/>`).join('');
+    $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hip height and knee bend over time">${grid}
+      <path d="${path(series.hipY.map((v) => -v), yH)}" fill="none" stroke="${css('--accent')}" stroke-width="2.5"/>
+      <path d="${path(series.knee.map((k) => k[0]), yK)}" fill="none" stroke="${css('--bone')}" stroke-width="1.6" opacity=".9"/>
+      <path d="${path(series.knee.map((k) => k[1]), yK)}" fill="none" stroke="${css('--muted')}" stroke-width="1.6" opacity=".8"/>${marks}</svg>`;
+  }
+
+  async function renderStrip() {
+    const { result } = state, pick = result.contacts.slice(0, 8);
+    $('stripNote').textContent = `${result.contacts.length} landings · first ${pick.length} shown`;
+    const strip = $('strip'); strip.innerHTML = '';
+    for (const c of pick) {
+      const fig = document.createElement('figure'), cv = document.createElement('canvas');
+      cv.width = 400; cv.height = 300; fig.append(cv);
+      const cap = document.createElement('figcaption');
+      cap.textContent = `${c.leg} · ${c.t.toFixed(2)}s · shin ${fmt(c.shinDeg, 0)}° · knee ${fmt(c.kneeFlexContact, 0)}°`;
+      fig.append(cap); strip.append(fig);
+      const ctx = cv.getContext('2d'), p = result.frames[c.frame].p;
+      // Crop around the runner.
+      const xs = p.slice(11).map((q) => q.x), ys = p.map((q) => q.y);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      const span = Math.max(Math.max(...ys) - Math.min(...ys), (Math.max(...xs) - Math.min(...xs)) * 0.75) * 1.15;
+      const s = 300 / span, ox = 200 - cx * s, oy = 150 - cy * s;
+      ctx.fillStyle = css('--stage'); ctx.fillRect(0, 0, 400, 300);
+      if (state.source === 'video') {
+        await new Promise((res) => { video.addEventListener('seeked', res, { once: true }); video.currentTime = c.t; });
+        ctx.drawImage(video, ox, oy, state.W * s, state.H * s);
+      }
+      drawPose(ctx, p, state.W, state.H, s, s, ox, oy, p[c.leg === 'Left' ? 27 : 28]);
+    }
+    if (state.source === 'video') video.currentTime = 0;
+  }
+
+  function show(result, source, W, H, heightCm) {
+    state = { result, scored: G.score(result), source, W, H, heightCm };
+    $('exampleBanner').hidden = source !== 'example';
+    video.hidden = source !== 'video';
+    clock = 0; renderReport(); renderStrip();
+  }
+
+  // ---------- Example on load ----------
+  const ex = G.synthRunner({ cadence: 164, reach: 8, duration: 8 });
+  show(G.analyze(ex.frames, ex), 'example', ex.width, ex.height, ex.heightCm);
+
+  // ---------- Real video ----------
+  let landmarker = null;
+  async function getLandmarker(setMsg) {
+    if (landmarker) return landmarker;
+    setMsg('Loading the pose model (about 19 MB, first time only)…');
+    let mod;
+    try { mod = await import('../vendor/vision_bundle.mjs'); }
+    catch (e) { mod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs'); }
+    const base = new URL('../vendor/', location.href).href;
+    const fileset = { wasmLoaderPath: base + 'wasm/vision_wasm_internal.js', wasmBinaryPath: base + 'wasm/vision_wasm_internal.wasm' };
+    const opts = (delegate) => ({ baseOptions: { modelAssetPath: base + 'pose_landmarker_full.task', delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    try { landmarker = await mod.PoseLandmarker.createFromOptions(fileset, opts('GPU')); }
+    catch (e) { landmarker = await mod.PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+    return landmarker;
+  }
+
+  async function analyseFile(file) {
+    const msg = $('msg'), prog = $('prog'), bar = prog.querySelector('i');
+    const setMsg = (t, err) => { msg.textContent = t; msg.classList.toggle('err', !!err); };
+    setPlaying(false);
+    try {
+      prog.hidden = false; bar.style.width = '0%';
+      const lmk = await getLandmarker(setMsg);
+      video.hidden = false; video.src = URL.createObjectURL(file);
+      await new Promise((res, rej) => { video.onloadeddata = res; video.onerror = () => rej(new Error('This browser cannot decode that video. iPhone HEVC .mov files often fail outside Safari; export as MP4 (H.264) and try again.')); });
+      const W = video.videoWidth, H = video.videoHeight;
+      const fps = parseInt($('fps').value, 10), dur = Math.min(video.duration, 12), n = Math.floor(dur * fps);
+      if (dur < 3) throw new Error('The clip is under 3 seconds. Film at least 5 seconds of steady running.');
+      const frames = [];
+      for (let i = 0; i < n; i++) {
+        const t = i / fps;
+        await new Promise((res) => { video.addEventListener('seeked', res, { once: true }); video.currentTime = t; });
+        const r = lmk.detectForVideo(video, Math.round(t * 1000) + 1);
+        frames.push({ t, lm: r.landmarks && r.landmarks[0] ? r.landmarks[0] : null });
+        if (i % 5 === 0) { bar.style.width = ((i / n) * 100).toFixed(0) + '%'; setMsg(`Tracking joints… frame ${i + 1} of ${n}`); }
+      }
+      bar.style.width = '100%';
+      const heightCm = parseFloat($('heightCm').value) || 175;
+      const result = G.analyze(frames, { width: W, height: H, heightCm });
+      if (result.contacts.length < 3) throw new Error('Fewer than 3 landings were found. Check the whole body, feet included, is in frame and the camera is side-on.');
+      show(result, 'video', W, H, heightCm);
+      setMsg(`Done. ${result.contacts.length} landings over ${dur.toFixed(1)} s.${result.quality.cadenceConfidence < 0.3 ? ' Cadence confidence is low; try a steadier clip.' : ''}`);
+    } catch (e) {
+      console.error(e);
+      setMsg(e.message && !/wasm|fetch|Failed to/i.test(e.message) ? e.message : 'The pose model could not load here (' + (e.message || e) + '). Reload the page and try again.', true);
+      if (state && state.source === 'example') video.hidden = true;
+    } finally { setTimeout(() => (prog.hidden = true), 600); }
+  }
+
+  $('file').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) analyseFile(f); });
+  const drop = $('drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) analyseFile(f); });
+})();
+</script>
+
+</body>
+</html>

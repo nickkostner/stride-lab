@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stride Lab Live</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stride Lab">
+<meta name="theme-color" content="#0b1116">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: 10-foot TV dashboard. Video + skeleton on the left, six giant metric tiles on the right, coaching cue bar across the bottom. Single dark theme on purpose: it sits on a TV in a gym. */
+:root {
+  --bg: #0b1116; --panel: #131c23; --line: #24323d; --ink: #e8eef2; --muted: #8b9cab;
+  --accent: #3cc2b9; --bone: #ff6b9e;
+  --good: #4fd18b; --watch: #f2b84b; --fix: #ff6f61;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 var(--f-body); overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 1.2vh; padding: 1.6vh 1.6vw; }
+.top { display: flex; align-items: center; gap: 1.2vw; min-width: 0; }
+.top .chip { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.brand { white-space: nowrap; font: 700 3.2vh var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+.chip { font: 500 1.7vh var(--f-mono); color: var(--muted); padding: .4vh .8vw; border: 1px solid var(--line); border-radius: 99px; white-space: nowrap; }
+.chip.warn { color: var(--watch); border-color: var(--watch); }
+.chip.bad { color: var(--fix); border-color: var(--fix); }
+.chip.ok { color: var(--good); border-color: var(--good); }
+.spacer { flex: 1; }
+.clock { font: 600 4vh var(--f-display); font-variant-numeric: tabular-nums; }
+button { font: 600 1.9vh var(--f-body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: .8vh; padding: .8vh 1.2vw; cursor: pointer; }
+button.go { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.4vw; min-height: 0; }
+.stage { position: relative; background: #05080b; border-radius: 1.2vh; overflow: hidden; min-height: 0; }
+.stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.stage .idle { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); font: 500 2.6vh var(--f-body); padding: 4vh; }
+.stage .idle b { display: block; font: 600 5vh var(--f-display); color: var(--ink); margin-bottom: 1vh; }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 1.2vh 1vw; min-height: 0; }
+.tile { background: var(--panel); border-radius: 1.2vh; padding: 1.4vh 1.2vw; display: grid; grid-template-rows: auto 1fr auto; min-height: 0; border-left: .8vh solid var(--line); position: relative; overflow: hidden; }
+.tile.good { border-left-color: var(--good); }
+.tile.watch { border-left-color: var(--watch); }
+.tile.fix { border-left-color: var(--fix); }
+.tile .k { font: 600 2.1vh var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 1vw; }
+.tile .k span:last-child { font: 400 1.6vh var(--f-mono); letter-spacing: 0; text-transform: none; }
+.tile .v { font: 700 9.5vh/1 var(--f-display); font-variant-numeric: tabular-nums; align-self: center; display: flex; align-items: baseline; gap: .6vw; }
+.tile .v small { font: 500 2.6vh var(--f-display); color: var(--muted); }
+.tile.good .v { color: var(--good); } .tile.watch .v { color: var(--watch); } .tile.fix .v { color: var(--fix); }
+.tile svg { width: 100%; height: 4.5vh; display: block; }
+
+.cue { display: flex; align-items: center; gap: 2vw; background: var(--panel); border-radius: 1.2vh; padding: 1.6vh 2vw; min-height: 11vh; }
+.cue .tag { font: 600 2vh var(--f-mono); letter-spacing: .1em; text-transform: uppercase; padding: .6vh 1vw; border-radius: .6vh; background: var(--line); color: var(--muted); white-space: nowrap; }
+.cue.fix .tag { background: var(--fix); color: var(--bg); } .cue.watch .tag { background: var(--watch); color: var(--bg); } .cue.good .tag { background: var(--good); color: var(--bg); }
+.cue .txt { font: 700 6.2vh/1.05 var(--f-display); letter-spacing: .01em; }
+.cue .sub { font-size: 2vh; color: var(--muted); margin-top: .4vh; }
+
+/* Settings + summary sheets */
+.sheet { position: fixed; inset: 0; background: rgba(5, 8, 11, .82); display: grid; place-items: center; z-index: 20; padding: 3vh; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 1.4vh; padding: 3vh 2.4vw; width: min(980px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 2vh; }
+.card h2 { font: 600 4vh var(--f-display); margin: 0; }
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6vh 2vw; }
+.form label { display: grid; gap: .6vh; font-size: 1.9vh; color: var(--muted); }
+.form .wide { grid-column: 1 / -1; }
+.form input, .form select { width: 100%; min-width: 0; font: 2.1vh var(--f-mono); padding: 1vh .8vw; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: .8vh; }
+.form .check { display: flex; gap: .8vw; align-items: center; color: var(--ink); }
+.form .check input { width: 2.4vh; height: 2.4vh; }
+.hint { font-size: 1.7vh; color: var(--muted); }
+.row { display: flex; gap: 1vw; flex-wrap: wrap; justify-content: flex-end; }
+table.sum { width: 100%; border-collapse: collapse; font-size: 2.1vh; }
+table.sum th, table.sum td { text-align: left; padding: 1vh .8vw; border-bottom: 1px solid var(--line); }
+table.sum th { font: 500 1.6vh var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+table.sum td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.bar { height: 1.4vh; border-radius: 1vh; background: var(--line); overflow: hidden; display: flex; min-width: 12vw; }
+.bar i { display: block; height: 100%; }
+.keys { font: 1.6vh var(--f-mono); color: var(--muted); }
+@media (max-aspect-ratio: 1/1) { .main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } html, body { overflow: auto; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">Stride Lab Live</div>
+    <span class="chip" id="srcChip">No camera</span>
+    <span class="chip" id="fpsChip">— fps</span>
+    <span class="chip" id="stepChip">0 steps</span>
+    <span class="spacer"></span>
+    <span class="clock" id="clock">0:00</span>
+    <button id="startBtn" class="go">Start</button>
+    <button id="setBtn">Settings</button>
+  </div>
+
+  <div class="main">
+    <div class="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="overlay"></canvas>
+      <div class="idle" id="idle"><div><b>Ready</b>Press Start, or Space on the keyboard.<br>Settings chooses the camera.</div></div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+
+  <div class="cue" id="cue"><span class="tag" id="cueTag">Waiting</span><div><div class="txt" id="cueTxt">Start running</div><div class="sub" id="cueSub">Numbers appear after about 6 seconds of steady running.</div></div></div>
+</div>
+
+<div class="sheet" id="settings" hidden>
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="form">
+      <label class="wide">Camera
+        <select id="source">
+          <option value="whep">Wyze or other network camera (via the bridge)</option>
+          <option value="camera">This device's camera (iPad, webcam, capture card)</option>
+          <option value="file">Video file, played on a loop</option>
+          <option value="demo">Demo runner (no camera)</option>
+        </select>
+      </label>
+      <label class="wide" id="urlRow">Stream address (WHEP)
+        <input id="url" type="text" value="/cam/treadmill/whep" spellcheck="false">
+        <span class="hint">With the included setup this is /cam/&lt;camera-name&gt;/whep. The camera name is the Wyze app nickname in lower case, with dashes for spaces.</span>
+      </label>
+      <label class="wide" id="camRow" hidden>Which camera
+        <select id="cameraId"><option value="">Back camera (default)</option></select>
+        <span class="hint">On an iPad use "Back Camera", not "Back Ultra Wide Camera": the ultra-wide lens bends the image. Names appear after the first time you allow camera access.</span>
+      </label>
+      <label class="wide" id="fileRow" hidden>Video file<input id="file" type="file" accept="video/*"></label>
+      <label>Runner height (cm)<input id="heightCm" type="number" min="120" max="220" value="178"></label>
+      <label>Analysis window
+        <select id="windowSec"><option value="6">6 s (reacts faster)</option><option value="8" selected>8 s</option><option value="12">12 s (steadier)</option></select>
+      </label>
+      <label>Pose model
+        <select id="model"><option value="full">Full (more accurate)</option><option value="lite">Lite (for slower computers)</option></select>
+      </label>
+      <label>Run the model on
+        <select id="delegate"><option value="auto">Automatic (tries both, keeps the faster)</option><option value="GPU">Graphics chip</option><option value="CPU">Processor</option></select>
+      </label>
+      <label>Metronome target (spm, 0 = off)<input id="metro" type="number" min="0" max="220" value="0"></label>
+      <label class="check"><input id="voice" type="checkbox"> Speak coaching cues through the TV</label>
+      <label class="check"><input id="autoTarget" type="checkbox"> Set metronome 5% above my cadence</label>
+    </div>
+    <p class="hint">Film side-on, 3–4 m from the treadmill, lens at hip height, whole body in frame, you near the centre. Light the room well: motion blur on the feet is the main source of error. On an iPad, set Auto-Lock to Never and keep it plugged in.</p>
+    <div class="row"><span class="keys">Space start/stop · S settings · M metronome · F fullscreen</span><a href="upload/" class="keys" style="color: var(--accent)">Analyse a recorded video instead</a><span class="spacer"></span><button id="closeSet">Close</button><button id="saveSet" class="go">Save</button></div>
+  </div>
+</div>
+
+<div class="sheet" id="summary" hidden>
+  <div class="card">
+    <h2 id="sumTitle">Session summary</h2>
+    <table class="sum"><thead><tr><th>Metric</th><th>Average</th><th>Target</th><th>Time in range</th></tr></thead><tbody id="sumBody"></tbody></table>
+    <div class="row"><button id="closeSum" class="go">Done</button></div>
+  </div>
+</div>
+
+<script src="gait.js"></script>
+<script type="module">
+const G = window.Gait;
+const $ = (id) => document.getElementById(id);
+const BONES = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
+const LEFT = new Set([13,15,25,27,29,31]);
+
+// ---------------- Settings ----------------
+const IS_APPLE_TABLET = /iPad|iPhone/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const DEFAULTS = { source: IS_APPLE_TABLET ? 'camera' : 'whep', url: '/cam/treadmill/whep', cameraId: '', heightCm: 178, windowSec: 8, model: 'full', delegate: 'auto', metro: 0, voice: false, autoTarget: false };
+let cfg = { ...DEFAULTS };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('strideLive') || '{}')); } catch {}
+const qp = new URLSearchParams(location.search);
+if (cfg.source === 'usb') cfg.source = 'camera'; // older saved setting
+for (const k of Object.keys(DEFAULTS)) if (qp.has(k)) cfg[k] = typeof DEFAULTS[k] === 'number' ? +qp.get(k) : typeof DEFAULTS[k] === 'boolean' ? qp.get(k) === '1' : qp.get(k);
+function fillForm() {
+  for (const k of Object.keys(DEFAULTS)) { const el = $(k); if (!el) continue; if (el.type === 'checkbox') el.checked = !!cfg[k]; else el.value = cfg[k]; }
+  $('urlRow').hidden = cfg.source !== 'whep'; $('fileRow').hidden = cfg.source !== 'file'; $('camRow').hidden = cfg.source !== 'camera';
+  listCameras();
+}
+$('source').addEventListener('change', () => { const v = $('source').value; $('urlRow').hidden = v !== 'whep'; $('fileRow').hidden = v !== 'file'; $('camRow').hidden = v !== 'camera'; });
+async function listCameras() {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput' && d.label);
+    if (!devs.length) return;
+    $('cameraId').innerHTML = '<option value="">Back camera (default)</option>' + devs.map((d) => `<option value="${d.deviceId}">${d.label.replace(/[<>&"]/g, '')}</option>`).join('');
+    $('cameraId').value = cfg.cameraId || '';
+  } catch {}
+}
+function readForm() {
+  for (const k of Object.keys(DEFAULTS)) { const el = $(k); if (!el) continue; cfg[k] = el.type === 'checkbox' ? el.checked : typeof DEFAULTS[k] === 'number' ? +el.value : el.value; }
+  try { localStorage.setItem('strideLive', JSON.stringify(cfg)); } catch {}
+}
+function openSettings() { fillForm(); $('settings').hidden = false; $('source').focus(); }
+$('setBtn').onclick = openSettings;
+$('closeSet').onclick = () => { $('settings').hidden = true; };
+$('saveSet').onclick = async () => { const wasRunning = running; readForm(); $('settings').hidden = true; if (wasRunning) { await stop(false); start(); } setMetronome(); };
+
+// ---------------- Tiles ----------------
+const TILE_KEYS = ['cadence', 'shinDeg', 'vertOscCm', 'gctMs', 'trunkDeg', 'kneeFlexContact'];
+const SHORT = { cadence: 'Cadence', shinDeg: 'Shin at landing', vertOscCm: 'Bounce', gctMs: 'Ground contact', trunkDeg: 'Trunk lean', kneeFlexContact: 'Knee at landing' };
+const rule = (k) => G.RULES.find((r) => r.key === k);
+$('tiles').innerHTML = TILE_KEYS.map((k) => { const r = rule(k); return `<div class="tile" id="t-${k}"><div class="k"><span>${SHORT[k]}</span><span>${r.good[0] === 0 ? "under " + r.good[1] : r.good[0] + "–" + r.good[1]}</span></div><div class="v"><span class="num">—</span><small>${r.unit}</small></div><svg viewBox="0 0 300 40" preserveAspectRatio="none"></svg></div>`; }).join('');
+
+// ---------------- Coaching cues ----------------
+const CUES = {
+  shinDeg: { high: ['Land under your hips', 'Your foot lands ahead of your knee. Shorter, quicker steps.'] },
+  cadence: { low: ['Quicker, lighter steps', 'Turn your legs over faster. Keep the same speed.'], high: ['Relax the rhythm', 'Very quick steps for this pace.'] },
+  vertOscCm: { high: ['Push back, not up', 'Too much bounce. Stay low and drive the belt back.'] },
+  trunkDeg: { low: ['Lean from the ankles', 'Tip slightly forward as one straight line.'], high: ['Run tall', 'Lift your chest; do not fold at the waist.'] },
+  kneeFlexContact: { low: ['Soft knees on landing', 'Land with a slight bend; land quietly.'] },
+  gctMs: { high: ['Quick feet off the belt', 'Pop the foot up as soon as it lands.'] },
+};
+const PRIORITY = ['shinDeg', 'cadence', 'vertOscCm', 'trunkDeg', 'kneeFlexContact', 'gctMs'];
+let history = []; // [{t, metrics, statuses}]
+let cueShown = { key: null, since: 0 };
+function chooseCue(now) {
+  const recent = history.slice(-5);
+  if (recent.length < 3) return null;
+  for (const k of PRIORITY) {
+    const fixN = recent.filter((h) => h.statuses[k] === 'fix').length;
+    const badN = recent.filter((h) => h.statuses[k] === 'fix' || h.statuses[k] === 'watch').length;
+    if (fixN >= 3 || badN >= 4) {
+      const v = recent[recent.length - 1].metrics[k], r = rule(k);
+      const dirn = v < r.good[0] ? 'low' : 'high';
+      if (CUES[k] && CUES[k][dirn]) return { key: k + dirn, status: fixN >= 3 ? 'fix' : 'watch', text: CUES[k][dirn] };
+    }
+  }
+  return { key: 'good', status: 'good', text: ['Looking good. Hold this.', 'Every key number is in range.'] };
+}
+function updateCue(now) {
+  const c = chooseCue(now);
+  if (!c) return;
+  if (c.key !== cueShown.key && now - cueShown.since < 8000 && cueShown.key) return; // hold each cue at least 8 s
+  if (c.key === cueShown.key) return;
+  cueShown = { key: c.key, since: now };
+  $('cue').className = 'cue ' + c.status;
+  $('cueTag').textContent = c.status === 'good' ? 'On form' : c.status === 'fix' ? 'Fix' : 'Watch';
+  $('cueTxt').textContent = c.text[0]; $('cueSub').textContent = c.text[1];
+  if (cfg.voice && 'speechSynthesis' in window && c.status !== 'good') { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(c.text[0])); }
+}
+
+// ---------------- Metronome ----------------
+let audio = null, metroTimer = null, nextBeat = 0, lastCadence = NaN;
+function setMetronome() {
+  clearInterval(metroTimer); metroTimer = null;
+  const bpm = cfg.autoTarget && Number.isFinite(lastCadence) ? Math.round(lastCadence * 1.05) : cfg.metro;
+  if (!bpm || !running) return;
+  audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+  nextBeat = audio.currentTime + 0.1;
+  metroTimer = setInterval(() => {
+    while (nextBeat < audio.currentTime + 0.2) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = 1500; g.gain.setValueAtTime(0.25, nextBeat); g.gain.exponentialRampToValueAtTime(0.001, nextBeat + 0.04);
+      o.connect(g).connect(audio.destination); o.start(nextBeat); o.stop(nextBeat + 0.05);
+      nextBeat += 60 / bpm;
+    }
+  }, 50);
+}
+
+// ---------------- Sources ----------------
+const video = $('video');
+let running = false, whepPc = null, whepLocation = null, reconnectTimer = null, demoTimer = null, fileUrl = null;
+
+async function startWhep(url) {
+  const pc = new RTCPeerConnection();
+  whepPc = pc;
+  pc.addTransceiver('video', { direction: 'recvonly' });
+  pc.ontrack = (e) => { video.srcObject = e.streams[0] || new MediaStream([e.track]); video.play().catch(() => {}); };
+  pc.onconnectionstatechange = () => {
+    setChip('srcChip', 'Camera: ' + pc.connectionState, pc.connectionState === 'connected' ? 'ok' : pc.connectionState === 'failed' || pc.connectionState === 'disconnected' ? 'bad' : '');
+    if ((pc.connectionState === 'failed' || pc.connectionState === 'disconnected') && running && !reconnectTimer) {
+      reconnectTimer = setTimeout(async () => { reconnectTimer = null; if (!running) return; closeWhep(); try { await startWhep(url); } catch (e) { showError(e); } }, 3000);
+    }
+  };
+  await pc.setLocalDescription(await pc.createOffer());
+  await new Promise((res) => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, 1500); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/sdp' }, body: pc.localDescription.sdp });
+  if (!r.ok) throw new Error(`The camera bridge answered ${r.status} at ${url}. Check the camera name and that the bridge is running.`);
+  const loc = r.headers.get('Location'); whepLocation = loc ? new URL(loc, new URL(url, location.href)).href : null;
+  await pc.setRemoteDescription({ type: 'answer', sdp: await r.text() });
+}
+function closeWhep() {
+  if (whepLocation) fetch(whepLocation, { method: 'DELETE' }).catch(() => {});
+  if (whepPc) whepPc.close();
+  whepPc = null; whepLocation = null;
+}
+
+async function startSource() {
+  video.hidden = false; video.loop = false;
+  if (cfg.source === 'whep') { setChip('srcChip', 'Camera: connecting'); await startWhep(cfg.url); }
+  else if (cfg.source === 'camera') {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access needs a secure (https) address. Open the hosted version of this page.');
+    const want = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, min: 24 } };
+    if (cfg.cameraId) want.deviceId = { exact: cfg.cameraId }; else want.facingMode = { ideal: 'environment' };
+    let s;
+    try { s = await navigator.mediaDevices.getUserMedia({ video: want, audio: false }); }
+    catch (e) { if (e.name === 'OverconstrainedError') { delete want.frameRate.min; delete want.deviceId; s = await navigator.mediaDevices.getUserMedia({ video: want, audio: false }); } else throw e; }
+    video.srcObject = s; await video.play();
+    const st = s.getVideoTracks()[0].getSettings(), label = s.getVideoTracks()[0].label || 'Camera';
+    setChip('srcChip', `${label} · ${st.width}×${st.height} @ ${Math.round(st.frameRate || 0)}`, (st.frameRate || 0) >= 50 ? 'ok' : 'warn');
+    listCameras();
+  } else if (cfg.source === 'file') {
+    const f = $('file').files[0];
+    if (!f) throw new Error('Choose a video file in Settings first.');
+    if (fileUrl) URL.revokeObjectURL(fileUrl);
+    fileUrl = URL.createObjectURL(f); video.srcObject = null; video.src = fileUrl; video.loop = true; await video.play(); setChip('srcChip', 'Source: file', 'ok');
+  } else if (cfg.source === 'demo') {
+    video.hidden = true; setChip('srcChip', 'Demo runner · 20 fps', 'ok');
+    const syn = G.synthRunner({ cadence: 162, reach: 9, fps: 20, duration: 60, trunk: 2 });
+    let i = 0; const t0 = performance.now();
+    demoTimer = setInterval(() => {
+      const f = syn.frames[i++ % syn.frames.length];
+      onPose(f.lm, (performance.now() - t0) / 1000, syn.width, syn.height);
+    }, 50);
+  }
+}
+async function stopSource() {
+  clearInterval(demoTimer); demoTimer = null; clearTimeout(reconnectTimer); reconnectTimer = null;
+  closeWhep();
+  if (video.srcObject) { video.srcObject.getTracks?.().forEach((t) => t.stop()); video.srcObject = null; }
+  video.pause(); video.removeAttribute('src'); video.load();
+}
+
+// ---------------- Pose ----------------
+let landmarker = null, landmarkerModel = null;
+// Automatic delegate: start on the graphics chip on Apple tablets (fast WebGL), the processor elsewhere;
+// after 40 frames try the other one once and keep whichever is faster.
+const auto = { current: null, ms: {}, frames: 0, tried: new Set(), switching: false, done: false };
+function activeDelegate() {
+  if (cfg.delegate !== 'auto') return cfg.delegate;
+  if (!auto.current) auto.current = IS_APPLE_TABLET ? 'GPU' : 'CPU';
+  return auto.current;
+}
+async function autoTune() {
+  if (cfg.delegate !== 'auto' || auto.done || auto.switching) return;
+  ++auto.frames;
+  if (auto.frames === 5) { detectMs = 0; return; } // ignore warm-up frames (shader compile, first allocations)
+  const other = auto.current === 'GPU' ? 'CPU' : 'GPU';
+  const firstMs = auto.ms[other];
+  const clearlySlower = firstMs && auto.frames >= 12 && detectMs > firstMs * 2; // stop a bad trial early
+  if (auto.frames < 25 && !clearlySlower) return;
+  auto.ms[auto.current] = detectMs; auto.tried.add(auto.current);
+  if (!auto.tried.has(other)) { auto.switching = true; auto.current = other; auto.frames = 0; detectMs = 0; await getLandmarker(); auto.switching = false; return; }
+  const best = Object.entries(auto.ms).sort((a, b) => a[1] - b[1])[0][0];
+  auto.done = true;
+  if (best !== auto.current) { auto.switching = true; auto.current = best; detectMs = 0; await getLandmarker(); auto.switching = false; }
+}
+async function getLandmarker() {
+  const delegate = activeDelegate();
+  if (landmarker && landmarkerModel === cfg.model + delegate) return landmarker;
+  landmarker?.close(); landmarker = null;
+  if (!running || !auto.switching) setChip('srcChip', 'Loading pose model…');
+  const { PoseLandmarker } = await import('./vendor/vision_bundle.mjs');
+  const fileset = { wasmLoaderPath: new URL('vendor/wasm/vision_wasm_internal.js', location.href).href, wasmBinaryPath: new URL('vendor/wasm/vision_wasm_internal.wasm', location.href).href };
+  const opts = (delegate) => ({ baseOptions: { modelAssetPath: new URL(`vendor/pose_landmarker_${cfg.model}.task`, location.href).href, delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await PoseLandmarker.createFromOptions(fileset, opts(delegate)); }
+  catch { auto.tried.add(delegate); auto.current = 'CPU'; landmarker = await PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+  landmarkerModel = cfg.model + activeDelegate();
+  return landmarker;
+}
+
+let lastTs = 0, rtpBase = null, lastMediaT = -1, detectMs = 0;
+let decoded = { n: 0, at: 0, fps: 0 };
+function cameraFps() {
+  const q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality().totalVideoFrames : 0, t = performance.now();
+  if (decoded.at && t - decoded.at > 900) { decoded.fps = (q - decoded.n) / ((t - decoded.at) / 1000); decoded = { n: q, at: t, fps: decoded.fps }; }
+  else if (!decoded.at) decoded = { n: q, at: t, fps: 0 };
+  return decoded.fps;
+}
+function frameTime(now, meta) {
+  // Prefer the camera's own capture clock so network jitter does not distort timing.
+  if (meta && Number.isFinite(meta.rtpTimestamp)) {
+    if (rtpBase === null) rtpBase = meta.rtpTimestamp;
+    let d = meta.rtpTimestamp - rtpBase; if (d < 0) d += 2 ** 32;
+    return d / 90000;
+  }
+  if (cfg.source === 'camera' && meta && Number.isFinite(meta.captureTime)) return meta.captureTime / 1000; // sensor time
+  if (meta && Number.isFinite(meta.mediaTime) && cfg.source !== 'camera') return meta.mediaTime;
+  return now / 1000;
+}
+function poseLoop() {
+  if (!running || cfg.source === 'demo') return;
+  video.requestVideoFrameCallback((now, meta) => {
+    if (!running) return;
+    if (auto.switching || !landmarker) { poseLoop(); return; }
+    try {
+      const ts = Math.max(lastTs + 1, Math.round(performance.now())); lastTs = ts;
+      const d0 = performance.now();
+      const r = landmarker.detectForVideo(video, ts);
+      detectMs = detectMs ? detectMs * 0.9 + (performance.now() - d0) * 0.1 : performance.now() - d0;
+      let t = frameTime(now, meta);
+      if (t < lastMediaT - 0.5) { buffer = []; } // file looped or stream restarted
+      lastMediaT = t;
+      onPose(r.landmarks && r.landmarks[0] ? r.landmarks[0] : null, t, video.videoWidth, video.videoHeight);
+      autoTune();
+    } catch (e) { console.error(e); }
+    poseLoop();
+  });
+}
+
+// ---------------- Live analysis ----------------
+let buffer = [], frameTimes = [], dims = { W: 1280, H: 720 }, latest = null, lastResult = null, sessionStart = 0, sessionLog = [], analyseTimer = null, clockTimer = null, totalSteps = 0, lastStepT = -1;
+function onPose(lm, t, W, H) {
+  dims = { W, H }; latest = lm;
+  buffer.push({ t, lm });
+  const keep = cfg.windowSec + 1;
+  while (buffer.length && buffer[0].t < t - keep) buffer.shift();
+  frameTimes.push(performance.now()); while (frameTimes.length && frameTimes[0] < performance.now() - 2000) frameTimes.shift();
+  draw();
+}
+function analyseNow() {
+  const now = performance.now();
+  const fps = frameTimes.length / 2;
+  const camFps = cfg.source === 'demo' ? fps : cameraFps();
+  setChip('fpsChip', detectMs ? `${fps.toFixed(0)} of ${camFps.toFixed(0)} fps · pose ${detectMs.toFixed(0)} ms ${activeDelegate() === 'GPU' ? 'GPU' : 'CPU'}` : `${fps.toFixed(0)} fps`, fps < 12 ? 'bad' : fps < 24 ? 'warn' : 'ok');
+  if (running && cfg.source !== 'demo' && fps < 10 && camFps >= 12 && now - sessionStart > 6000) {
+    $('cue').className = 'cue fix'; $('cueTag').textContent = 'Computer'; $('cueTxt').textContent = 'This computer is too slow';
+    $('cueSub').textContent = `The camera sends ${camFps.toFixed(0)} fps but only ${fps.toFixed(0)} fps get analysed (${detectMs.toFixed(0)} ms per frame). Switch to the Lite model in Settings, or use a faster computer.`;
+    cueShown = { key: null, since: 0 }; return;
+  }
+  $('fpsChip').title = fps < 24 ? 'Below 24 fps: landing angles about ±2–5°, ground contact about ±15–30 ms (simulated tests).' : '';
+  if (buffer.length < 2 || buffer[buffer.length - 1].t - buffer[0].t < cfg.windowSec * 0.75) return;
+  const span = buffer.slice(buffer.findIndex((b) => b.t >= buffer[buffer.length - 1].t - cfg.windowSec));
+  const t0 = span[0].t;
+  let res;
+  try { res = G.analyze(span.map((s) => ({ t: s.t - t0, lm: s.lm })), { width: dims.W, height: dims.H, heightCm: cfg.heightCm }); }
+  catch (e) {
+    $('cue').className = 'cue watch'; $('cueTag').textContent = 'Camera'; $('cueTxt').textContent = 'Step into view'; $('cueSub').textContent = e.message; cueShown = { key: null, since: 0 };
+    return;
+  }
+  if (res.contacts.length < 3) return;
+  lastResult = { ...res, t0 };
+  // Count new steps since the last analysis.
+  for (const c of res.contacts) { const ct = c.t + t0; if (ct > lastStepT + 0.15) { totalSteps++; lastStepT = ct; } }
+  setChip('stepChip', `${totalSteps} steps`);
+  const statuses = {}; for (const r of G.RULES) statuses[r.key] = G.status(r, res.metrics[r.key]);
+  history.push({ t: now, metrics: res.metrics, statuses }); if (history.length > 400) history.shift();
+  sessionLog.push({ t: (now - sessionStart) / 1000, metrics: res.metrics, statuses });
+  if (Number.isFinite(res.metrics.cadence)) { const changed = Math.abs((lastCadence || 0) - res.metrics.cadence) > 3; lastCadence = res.metrics.cadence; if (cfg.autoTarget && changed) setMetronome(); }
+  for (const k of TILE_KEYS) {
+    const r = rule(k), v = res.metrics[k], el = $('t-' + k);
+    el.className = 'tile ' + statuses[k];
+    el.querySelector('.num').textContent = Number.isFinite(v) ? v.toFixed(r.dp) : '—';
+    spark(el.querySelector('svg'), k, r);
+  }
+  updateCue(now);
+}
+function spark(svg, k, r) {
+  const pts = sessionLog.slice(-120).map((h) => h.metrics[k]).filter(Number.isFinite);
+  if (pts.length < 2) { svg.innerHTML = ''; return; }
+  const lo = Math.min(r.watch[0], ...pts), hi = Math.max(r.watch[1], ...pts);
+  const y = (v) => 38 - ((v - lo) / (hi - lo || 1)) * 36, x = (i) => (i / (pts.length - 1)) * 300;
+  svg.innerHTML = `<rect x="0" y="${y(r.good[1])}" width="300" height="${Math.max(1, y(r.good[0]) - y(r.good[1]))}" fill="rgba(79,209,139,.12)"/>
+    <polyline points="${pts.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ')}" fill="none" stroke="#8b9cab" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+}
+
+// ---------------- Drawing ----------------
+const overlay = $('overlay'), ctx = overlay.getContext('2d');
+function draw() {
+  const rect = overlay.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (overlay.width !== Math.round(rect.width * dpr) || overlay.height !== Math.round(rect.height * dpr)) { overlay.width = Math.round(rect.width * dpr); overlay.height = Math.round(rect.height * dpr); }
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  if (!latest) return;
+  const { W, H } = dims, s = Math.min(overlay.width / W, overlay.height / H), ox = (overlay.width - W * s) / 2, oy = (overlay.height - H * s) / 2;
+  const X = (q) => ox + q.x * W * s, Y = (q) => oy + q.y * H * s;
+  ctx.lineCap = 'round'; ctx.lineWidth = Math.max(3, 5 * dpr);
+  for (const [a, b] of BONES) { ctx.strokeStyle = LEFT.has(a) || LEFT.has(b) ? '#ff6b9e' : '#c9d6df'; ctx.beginPath(); ctx.moveTo(X(latest[a]), Y(latest[a])); ctx.lineTo(X(latest[b]), Y(latest[b])); ctx.stroke(); }
+  const ear = { x: (latest[7].x + latest[8].x) / 2, y: (latest[7].y + latest[8].y) / 2 }, sh = { x: (latest[11].x + latest[12].x) / 2, y: (latest[11].y + latest[12].y) / 2 };
+  ctx.strokeStyle = '#c9d6df'; ctx.beginPath(); ctx.moveTo(X(sh), Y(sh)); ctx.lineTo(X(ear), Y(ear)); ctx.stroke();
+  ctx.beginPath(); ctx.arc(X(ear), Y(ear), Math.max(8, Math.hypot(latest[0].x - ear.x, (latest[0].y - ear.y) * H / W) * W * s * 1.3), 0, Math.PI * 2); ctx.stroke();
+  // Light up a foot while it is on the ground (from the last analysis' ground line).
+  if (lastResult) {
+    const ground = lastResult.ground, th = 0.045 * lastResult.legPx;
+    for (const [ank, heel, toe] of [[27, 29, 31], [28, 30, 32]]) {
+      const low = Math.max(latest[heel].y, latest[toe].y, latest[ank].y) * H;
+      if (low > ground - th) { ctx.fillStyle = '#3cc2b9'; ctx.beginPath(); ctx.arc(X(latest[ank]), Y(latest[ank]), Math.max(8, 12 * dpr), 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.strokeStyle = 'rgba(60,194,185,.5)'; ctx.lineWidth = 2 * dpr; ctx.setLineDash([8 * dpr, 8 * dpr]);
+    ctx.beginPath(); ctx.moveTo(ox, oy + ground * s); ctx.lineTo(ox + W * s, oy + ground * s); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+addEventListener('resize', draw);
+
+// ---------------- Session ----------------
+function setChip(id, text, cls = '') { const el = $(id); el.textContent = text; el.className = 'chip' + (cls ? ' ' + cls : ''); }
+function showError(e) {
+  console.error(e);
+  $('cue').className = 'cue fix'; $('cueTag').textContent = 'Problem'; $('cueTxt').textContent = 'Camera not connected'; $('cueSub').textContent = e.message || String(e);
+  setChip('srcChip', 'Camera error', 'bad');
+}
+let wakeLock = null;
+async function keepAwake() { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && running) keepAwake(); });
+async function start() {
+  if (running) return;
+  running = true; $('startBtn').textContent = 'Stop'; $('startBtn').className = ''; $('idle').hidden = true;
+  buffer = []; history = []; sessionLog = []; detectMs = 0; decoded = { n: 0, at: 0, fps: 0 }; totalSteps = 0; lastStepT = -1; rtpBase = null; lastMediaT = -1; lastResult = null; latest = null; cueShown = { key: null, since: 0 };
+  $('cue').className = 'cue'; $('cueTag').textContent = 'Warming up'; $('cueTxt').textContent = 'Start running'; $('cueSub').textContent = 'Numbers appear after about 6 seconds of steady running.';
+  sessionStart = performance.now();
+  clockTimer = setInterval(() => { const s = Math.floor((performance.now() - sessionStart) / 1000); $('clock').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 500);
+  try {
+    if (cfg.source !== 'demo') await getLandmarker();
+    await startSource();
+    poseLoop();
+    analyseTimer = setInterval(analyseNow, 1000);
+    setMetronome();
+    keepAwake();
+  } catch (e) { showError(e); await stop(false); }
+}
+async function stop(showSummary = true) {
+  if (!running) return;
+  running = false; $('startBtn').textContent = 'Start'; $('startBtn').className = 'go';
+  clearInterval(analyseTimer); clearInterval(clockTimer); clearInterval(metroTimer);
+  await stopSource();
+  latest = null; draw(); $('idle').hidden = false;
+  if (showSummary && sessionLog.length >= 5) renderSummary();
+}
+function renderSummary() {
+  const mins = Math.floor((performance.now() - sessionStart) / 60000), secs = Math.floor(((performance.now() - sessionStart) / 1000) % 60);
+  $('sumTitle').textContent = `Session summary · ${mins}:${String(secs).padStart(2, '0')} · ${totalSteps} steps`;
+  $('sumBody').innerHTML = G.RULES.map((r) => {
+    const vals = sessionLog.map((h) => h.metrics[r.key]).filter(Number.isFinite);
+    if (!vals.length) return '';
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const st = sessionLog.map((h) => h.statuses[r.key]).filter((s) => s !== 'na');
+    const share = (s) => (st.filter((x) => x === s).length / st.length) * 100;
+    return `<tr><td>${r.label}</td><td class="n">${avg.toFixed(r.dp)} ${r.unit}</td><td class="n">${r.good[0] === 0 ? "under " + r.good[1] : r.good[0] + "–" + r.good[1]}</td>
+      <td><div class="bar"><i style="width:${share('good')}%;background:var(--good)"></i><i style="width:${share('watch')}%;background:var(--watch)"></i><i style="width:${share('fix')}%;background:var(--fix)"></i></div></td></tr>`;
+  }).join('');
+  $('summary').hidden = false; $('closeSum').focus();
+}
+$('closeSum').onclick = () => { $('summary').hidden = true; };
+$('startBtn').onclick = () => (running ? stop() : start());
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { $('settings').hidden = true; $('summary').hidden = true; return; }
+  if (e.target.matches('input, select')) return;
+  if (e.key === ' ') { e.preventDefault(); running ? stop() : start(); }
+  else if (e.key === 's' || e.key === 'S') openSettings();
+  else if (e.key === 'm' || e.key === 'M') { cfg.metro = cfg.metro ? 0 : Math.round(lastCadence * 1.05) || 170; setMetronome(); }
+  else if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.().catch(() => {});
+  else if (e.key === 'Escape') { $('settings').hidden = true; $('summary').hidden = true; }
+});
+fillForm();
+if (qp.get('autostart') === '1') start();
+window.__live = { cfg, auto, get detectMs() { return detectMs; }, get result() { return lastResult; }, get history() { return history; } };
+</script>
+</body>
+</html>
