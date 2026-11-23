@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bike Lab</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bike Lab">
+<meta name="theme-color" content="#0b1116">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Bike Lab on the iPhone: side-on on a stand, plugged in. Big type because it's read from the bike, if at all.
+   Single dark theme on purpose, matching Stride Lab (it sits in a dim pain cave). */
+:root {
+  --bg: #0b1116; --panel: #131c23; --line: #24323d; --ink: #e8eef2; --muted: #8b9cab;
+  --accent: #3cc2b9; --good: #4fd18b; --watch: #f2b84b; --fix: #ff6f61;
+  --aero: #3cc2b9; --base: #f2b84b; --up: #ff6f61; --stand: #b48cff; --none: #2a3843;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 var(--f-body); }
+body { padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 12px; }
+.top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.brand { font: 700 26px var(--f-display); letter-spacing: .04em; text-transform: uppercase; }
+.brand b { color: var(--accent); }
+.chip { font: 12px var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.chip.ok { color: var(--good); } .chip.warn { color: var(--watch); } .chip.bad { color: var(--fix); }
+.spacer { flex: 1; }
+a { color: var(--accent); }
+.stage { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
+.stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.stage .hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 20px; }
+.now { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; min-width: 0; }
+.tile .l { font: 600 12px var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.tile .v { font: 700 clamp(30px, 8vw, 56px)/1.05 var(--f-display); font-variant-numeric: tabular-nums; }
+.pos-aero { color: var(--aero); } .pos-base { color: var(--base); } .pos-up { color: var(--up); } .pos-stand { color: var(--stand); } .pos-none { color: var(--muted); }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+button { font: 600 16px var(--f-body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; min-height: 48px; cursor: pointer; }
+button.primary { background: var(--accent); color: #04211f; border-color: var(--accent); }
+button.danger { background: var(--fix); color: #2a0703; border-color: var(--fix); }
+button:disabled { opacity: .45; cursor: default; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.card h2 { margin: 0 0 8px; font: 600 20px var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.card p { margin: 6px 0; }
+.muted { color: var(--muted); } .small { font-size: 14px; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.step { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.step.done { border-color: var(--good); } .step.active { border-color: var(--accent); background: #10262a; }
+.step b { display: block; font: 600 18px var(--f-display); }
+.bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--none); margin: 8px 0; }
+.bar i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.kpis div { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.kpis b { display: block; font: 700 28px var(--f-display); font-variant-numeric: tabular-nums; }
+.kpis span { font-size: 12px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+td, th { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.err { color: var(--fix); }
+select { font: 15px var(--f-body); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; max-width: 100%; }
+@media (max-width: 560px) {
+  .now { grid-template-columns: 1fr 1fr; } .now .tile:first-child { grid-column: 1 / -1; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .steps { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Bike <b>Lab</b></div>
+    <span class="chip" id="camChip">Camera off</span>
+    <span class="chip" id="fpsChip">—</span>
+    <span class="spacer"></span>
+    <a class="small" href="../">Stride Lab</a>
+  </div>
+
+  <div class="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="hint" id="hint"><div>Side-on, at hip height, landscape, plugged in.<br>Tap <b>Start camera</b>, then check that your shoulder, elbow, wrist and hip stay in frame.</div></div>
+  </div>
+
+  <div class="now">
+    <div class="tile"><div class="l">Position</div><div class="v pos-none" id="pos">—</div></div>
+    <div class="tile"><div class="l">Aero so far</div><div class="v" id="aeroPct">—</div></div>
+    <div class="tile"><div class="l">This stretch</div><div class="v" id="streak">—</div></div>
+  </div>
+
+  <div class="btns">
+    <button id="camBtn" class="primary">Start camera</button>
+    <button id="calBtn" disabled>Calibrate</button>
+    <button id="rideBtn" disabled>Start ride</button>
+    <span class="spacer"></span>
+    <select id="camera" aria-label="Which camera"><option value="">Back camera (default)</option></select>
+  </div>
+
+  <div class="card" id="calCard" hidden>
+    <h2>Calibrate</h2>
+    <p class="small muted">Hold each position for 20 seconds while pedalling easily. The phone speaks each step, so you don't need to look at it. Do this once per bike setup or camera position.</p>
+    <div class="steps" id="steps"></div>
+    <p id="calMsg" class="small"></p>
+  </div>
+
+  <div class="card" id="sumCard" hidden></div>
+
+  <div class="card">
+    <h2>Saved rides</h2>
+    <p class="small muted">Each ride stays on this phone until you delete it. <b>Send to Temper</b> opens the share sheet: AirDrop it to the Mac, then import it in Temper under Bike Lab. Temper lines it up with the ride's power from Zwift (via Strava).</p>
+    <div id="saved"></div>
+  </div>
+
+  <p class="small muted">Video never leaves the phone; only the position timeline is saved. <span id="calState"></span></p>
+</div>
+
+<script src="../aero.js"></script>
+<script type="module">
+const A = window.Aero;
+const $ = (id) => document.getElementById(id);
+const video = $('video'), canvas = $('overlay'), ctx = canvas.getContext('2d');
+const SAMPLE_MS = 200; // 5 analysed frames a second: positions change slowly, and it keeps the phone cool
+const CAL_KEY = 'bikeLab.cal.v1', RIDES_KEY = 'bikeLab.rides.v1', LIVE_KEY = 'bikeLab.inProgress.v1';
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+
+let cal = store.get(CAL_KEY, null);
+let landmarker = null, stream = null, lastSample = 0, lastTs = 0, detectMs = 0, frames = [];
+let mode = 'idle'; // idle | preview | calibrating | riding
+let ride = null, calRun = null, latest = null, wakeLock = null;
+
+// ---------------- Camera + pose ----------------
+function chip(id, text, cls = '') { $(id).textContent = text; $(id).className = 'chip' + (cls ? ' ' + cls : ''); }
+async function listCameras() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput' && d.label);
+  const sel = $('camera'), keep = sel.value;
+  sel.innerHTML = '<option value="">Back camera (default)</option>' + devs.map((d) => `<option value="${d.deviceId}">${d.label.replace(/</g, '&lt;')}</option>`).join('');
+  sel.value = keep;
+}
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access needs the hosted (https) address of this page.');
+  stream?.getTracks().forEach((t) => t.stop());
+  const want = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+  if ($('camera').value) want.deviceId = { exact: $('camera').value }; else want.facingMode = { ideal: 'environment' };
+  stream = await navigator.mediaDevices.getUserMedia({ video: want, audio: false });
+  video.srcObject = stream; await video.play();
+  const st = stream.getVideoTracks()[0].getSettings();
+  chip('camChip', `${st.width}×${st.height} @ ${Math.round(st.frameRate || 0)}`, 'ok');
+  $('hint').hidden = true;
+  listCameras();
+}
+async function loadPose() {
+  if (landmarker) return;
+  chip('fpsChip', 'Loading pose model…');
+  const { PoseLandmarker } = await import('../vendor/vision_bundle.mjs');
+  const fileset = { wasmLoaderPath: new URL('../vendor/wasm/vision_wasm_internal.js', location.href).href, wasmBinaryPath: new URL('../vendor/wasm/vision_wasm_internal.wasm', location.href).href };
+  const opts = (delegate) => ({ baseOptions: { modelAssetPath: new URL('../vendor/pose_landmarker_full.task', location.href).href, delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('GPU')); }
+  catch { landmarker = await PoseLandmarker.createFromOptions(fileset, opts('CPU')); }
+}
+
+function loop() {
+  video.requestVideoFrameCallback(() => {
+    if (mode === 'idle') return;
+    const now = performance.now();
+    if (now - lastSample >= SAMPLE_MS && landmarker) {
+      lastSample = now;
+      try {
+        const ts = Math.max(lastTs + 1, Math.round(now)); lastTs = ts;
+        const r = landmarker.detectForVideo(video, ts);
+        const ms = performance.now() - now;
+        detectMs = detectMs ? detectMs * 0.9 + ms * 0.1 : ms;
+        onFrame(r.landmarks?.[0] || null, now / 1000);
+      } catch (e) { console.error(e); }
+    }
+    loop();
+  });
+}
+
+function onFrame(lm, t) {
+  frames.push(t); while (frames.length && frames[0] < t - 2) frames.shift();
+  const f = A.features(lm, video.videoWidth, video.videoHeight);
+  latest = { lm, f };
+  const label = A.classify(f, cal || A.DEFAULT_CAL);
+  if (mode === 'calibrating' && calRun?.recording) calRun.samples[calRun.pos].push(f);
+  if (mode === 'riding') ride.tracker.push(t - ride.t0, label);
+  draw(lm, f);
+  render(label);
+}
+
+// Near-side shoulder, elbow, wrist, hip only: that's all the classifier reads.
+function draw(lm) {
+  const W = canvas.clientWidth, H = canvas.clientHeight, dpr = devicePixelRatio || 1;
+  if (canvas.width !== W * dpr) { canvas.width = W * dpr; canvas.height = H * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (!lm || !video.videoWidth) return;
+  const s = Math.min(W / video.videoWidth, H / video.videoHeight), ox = (W - video.videoWidth * s) / 2, oy = (H - video.videoHeight * s) / 2;
+  const side = latest.f?.side || 'l', idx = side === 'l' ? [11, 13, 15, 23] : [12, 14, 16, 24];
+  const P = (i) => [ox + lm[i].x * video.videoWidth * s, oy + lm[i].y * video.videoHeight * s];
+  ctx.lineWidth = 4; ctx.strokeStyle = latest.f ? '#3cc2b9' : '#ff6f61'; ctx.beginPath();
+  ctx.moveTo(...P(idx[3])); ctx.lineTo(...P(idx[0])); ctx.lineTo(...P(idx[1])); ctx.lineTo(...P(idx[2])); ctx.stroke();
+  ctx.fillStyle = '#e8eef2'; for (const i of idx) { const [x, y] = P(i); ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill(); }
+}
+
+const mmss = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? `${h}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(x).padStart(2, '0')}`; };
+let lastUi = 0;
+function render(label) {
+  const now = performance.now(); if (now - lastUi < 400) return; lastUi = now;
+  chip('fpsChip', `${(frames.length / 2).toFixed(0)} fps · pose ${detectMs.toFixed(0)} ms`, frames.length / 2 >= 4 ? 'ok' : 'warn');
+  const pos = mode === 'riding' ? ride.tracker.current() : label;
+  $('pos').textContent = A.LABELS[pos]; $('pos').className = 'v pos-' + pos;
+  if (mode === 'riding') {
+    const segs = ride.tracker.segments(), s = A.summarize(segs), cur = segs.at(-1);
+    $('aeroPct').textContent = s.seenS > 5 ? `${Math.round(s.aeroPct)}%` : '—';
+    $('streak').textContent = cur ? mmss(cur.e - cur.s) : '—';
+    $('rideBtn').textContent = `Stop ride · ${mmss(s.totalS)}`;
+    // Every 30 s, keep a copy so a crash, reload or dead battery loses at most 30 s of the ride.
+    if (now - ride.savedAt > 30000) { ride.savedAt = now; store.set(LIVE_KEY, { startedAt: ride.startedAt, segments: segs }); }
+  }
+}
+
+// ---------------- Voice ----------------
+function say(text) { try { speechSynthesis.cancel(); speechSynthesis.speak(Object.assign(new SpeechSynthesisUtterance(text), { rate: 1.05 })); } catch {} }
+async function keepAwake() { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && mode !== 'idle') keepAwake(); });
+
+// ---------------- Calibration ----------------
+const CAL_TEXT = { aero: ['Aero', 'Elbows on the pads, hands on the extensions.'], base: ['Base bars', 'Hands on the base bar, as you would on a climb.'], up: ['Sitting up', 'Sit upright, hands on the tops or off the bars.'] };
+function renderSteps(active = null) {
+  $('steps').innerHTML = A.CALIBRATED.map((p) => `<div class="step ${calRun?.samples[p].length && p !== active ? 'done' : ''} ${p === active ? 'active' : ''}"><b>${CAL_TEXT[p][0]}</b>${CAL_TEXT[p][1]}</div>`).join('');
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function calibrateFlow() {
+  mode = 'calibrating'; $('calCard').hidden = false; $('calBtn').disabled = $('rideBtn').disabled = true;
+  calRun = { samples: { aero: [], base: [], up: [] }, pos: null, recording: false };
+  try {
+    for (const p of A.CALIBRATED) {
+      calRun.pos = p; renderSteps(p);
+      say(`${CAL_TEXT[p][0]}. ${CAL_TEXT[p][1]} Starting in five seconds.`);
+      for (let i = 5; i > 0; i--) { $('calMsg').textContent = `${CAL_TEXT[p][0]}: get into position… ${i}`; await wait(1000); }
+      calRun.recording = true; say('Hold.');
+      for (let i = 20; i > 0; i--) { $('calMsg').textContent = `${CAL_TEXT[p][0]}: hold… ${i} s (${calRun.samples[p].filter(Boolean).length} frames)`; await wait(1000); }
+      calRun.recording = false;
+    }
+    cal = A.calibrate(calRun.samples); cal.at = new Date().toISOString();
+    store.set(CAL_KEY, cal); renderSteps();
+    $('calMsg').innerHTML = 'Calibrated. ' + (cal.warnings.length ? `<span class="err">${cal.warnings.join(' ')} Move the phone so it sees you straight from the side, then calibrate again.</span>` : 'All three positions look distinct from this angle.');
+    say('Calibrated.');
+  } catch (e) {
+    $('calMsg').innerHTML = `<span class="err">${e.message}</span>`; say('Calibration failed. Check the screen.');
+  }
+  mode = 'preview'; $('calBtn').disabled = $('rideBtn').disabled = false; showCalState();
+}
+function showCalState() { $('calState').textContent = cal ? `Calibrated ${new Date(cal.at).toLocaleDateString()}.` : 'Not calibrated yet: using rough defaults.'; }
+
+// ---------------- Ride ----------------
+function startRide() {
+  ride = { t0: performance.now() / 1000, startedAt: new Date().toISOString(), tracker: A.Tracker(), savedAt: performance.now() };
+  mode = 'riding'; keepAwake(); say('Recording.');
+  $('rideBtn').className = 'danger'; $('calBtn').disabled = true; $('sumCard').hidden = true;
+}
+// The file Temper imports. Times in segments are seconds from startedAt (the phone's clock, UTC).
+function buildSession(startedAt, rawSegments, extra = {}) {
+  const segments = rawSegments.map((g) => ({ pos: g.pos, s: +g.s.toFixed(1), e: +g.e.toFixed(1) }));
+  const summary = A.summarize(segments);
+  return {
+    kind: 'temper.bikelab.session', version: 1, id: 'bike-' + startedAt.replace(/[^0-9]/g, '').slice(0, 14),
+    startedAt, durationS: Math.round(summary.totalS), sampleHz: 1000 / SAMPLE_MS,
+    calibrated: !!cal, calibration: cal, segments, ...extra,
+    summary: { aeroPct: +summary.aeroPct.toFixed(1), longestAeroS: Math.round(summary.longestAeroS), breaks: summary.breaks, secs: Object.fromEntries(Object.entries(summary.secs).map(([k, v]) => [k, Math.round(v)])) },
+  };
+}
+function saveSession(session) {
+  if (session.durationS < 30) return false;
+  const rides = store.get(RIDES_KEY, []).filter((r) => r.id !== session.id); rides.unshift(session);
+  if (!store.set(RIDES_KEY, rides)) alert('Could not save on this phone. Use Send to Temper now.');
+  try { localStorage.removeItem(LIVE_KEY); } catch {}
+  renderSaved();
+  return true;
+}
+function stopRide() {
+  mode = 'preview'; wakeLock?.release?.(); wakeLock = null;
+  const session = buildSession(ride.startedAt, ride.tracker.segments());
+  ride = null;
+  $('rideBtn').className = ''; $('rideBtn').textContent = 'Start ride'; $('calBtn').disabled = false;
+  if (!saveSession(session)) { say('Too short to save.'); try { localStorage.removeItem(LIVE_KEY); } catch {} return; }
+  say(`Saved. Aero ${Math.round(session.summary.aeroPct)} percent.`);
+  showSummary(session);
+}
+// A ride that was still recording when the page died: save what was autosaved.
+function recoverRide() {
+  const live = store.get(LIVE_KEY, null);
+  if (live?.segments?.length) saveSession(buildSession(live.startedAt, live.segments, { recovered: true }));
+  try { localStorage.removeItem(LIVE_KEY); } catch {}
+}
+
+const COLORS = { aero: 'var(--aero)', base: 'var(--base)', up: 'var(--up)', stand: 'var(--stand)', none: 'var(--none)' };
+function timeline(session) {
+  const T = session.segments.at(-1)?.e || 1;
+  return `<div class="bar">${session.segments.map((g) => `<i style="width:${((g.e - g.s) / T) * 100}%;background:${COLORS[g.pos]}" title="${A.LABELS[g.pos]} ${mmss(g.e - g.s)}"></i>`).join('')}</div>
+    <div class="legend">${['aero', 'base', 'up', 'stand', 'none'].map((p) => `<span style="--c:${COLORS[p]}">${A.LABELS[p]} ${mmss(session.summary.secs[p] || 0)}</span>`).join('')}</div>`;
+}
+function showSummary(s) {
+  $('sumCard').hidden = false;
+  $('sumCard').innerHTML = `<h2>Ride · ${new Date(s.startedAt).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</h2>
+    <div class="kpis"><div><b>${Math.round(s.summary.aeroPct)}%</b><span>aero</span></div><div><b>${mmss(s.summary.longestAeroS)}</b><span>longest aero stretch</span></div>
+    <div><b>${s.summary.breaks}</b><span>times out of aero</span></div><div><b>${mmss(s.durationS)}</b><span>recorded</span></div></div>
+    ${timeline(s)}
+    ${s.recovered ? '<p class="small muted">Recovered after the page closed mid-ride: the last few seconds may be missing.</p>' : ''}
+    ${s.calibrated ? '' : '<p class="small err">Not calibrated: positions are rough guesses. Calibrate before the next ride.</p>'}
+    <p class="small muted">Per-interval and power-zone numbers appear in Temper once the ride is imported.</p>`;
+}
+
+function renderSaved() {
+  const rides = store.get(RIDES_KEY, []);
+  $('saved').innerHTML = rides.length ? `<table><tr><th>When</th><th class="num">Length</th><th class="num">Aero</th><th></th></tr>${rides.map((r, i) => `<tr>
+    <td>${new Date(r.startedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+    <td class="num">${mmss(r.durationS)}</td><td class="num">${Math.round(r.summary.aeroPct)}%</td>
+    <td class="num"><button data-send="${i}">Send to Temper</button> <button data-view="${i}">View</button> <button data-del="${i}">Delete</button></td></tr>`).join('')}</table>`
+    : '<p class="small muted">No rides yet.</p>';
+}
+$('saved').addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const rides = store.get(RIDES_KEY, []);
+  if (b.dataset.view) showSummary(rides[+b.dataset.view]);
+  if (b.dataset.del && confirm('Delete this ride from the phone? Rides already sent to Temper stay there.')) { rides.splice(+b.dataset.del, 1); store.set(RIDES_KEY, rides); renderSaved(); }
+  if (b.dataset.send) {
+    const r = rides[+b.dataset.send];
+    const file = new File([JSON.stringify(r)], `${r.id}.bikelab.json`, { type: 'application/json' });
+    try {
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'Bike Lab ride' });
+      else { const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+    } catch (err) { if (err.name !== 'AbortError') alert('Could not share: ' + err.message); }
+  }
+});
+
+// ---------------- Buttons ----------------
+$('camBtn').onclick = async () => {
+  $('camBtn').disabled = true;
+  try {
+    await startCamera(); await loadPose();
+    if (mode === 'idle') { mode = 'preview'; loop(); }
+    $('calBtn').disabled = $('rideBtn').disabled = false; $('camBtn').textContent = 'Restart camera';
+  } catch (e) { $('hint').hidden = false; $('hint').innerHTML = `<div class="err">${e.message}</div>`; chip('camChip', 'Camera off', 'bad'); }
+  $('camBtn').disabled = false;
+};
+$('camera').onchange = () => { if (stream) $('camBtn').click(); };
+$('calBtn').onclick = () => calibrateFlow();
+$('rideBtn').onclick = () => (mode === 'riding' ? stopRide() : startRide());
+addEventListener('beforeunload', (e) => { if (mode === 'riding') { e.preventDefault(); e.returnValue = ''; } });
+recoverRide(); showCalState(); renderSaved(); renderSteps();
+</script>
+</body>
+</html>

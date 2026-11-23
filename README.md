@@ -1,11 +1,15 @@
 # Stride Lab
 
+> **Deploy-only copy.** The source is `form-lab/` in the private `nickkostner/temper` repo. Changes made here get overwritten on the next deploy.
+
 Running-form analysis from video, in the browser. The pose model runs on your device; video never leaves it.
 
 - **Live (TV):** `https://nickkostner.github.io/stride-lab/`. Real-time analysis on a treadmill: iPad camera, or a Wyze cam through the bridge.
 - **Upload:** `https://nickkostner.github.io/stride-lab/upload/`. Analyse a recorded 5–10 s side-on clip, with a teardown of how Ochy works.
 
-Both are published by `.github/workflows/pages.yml` on every push to `main`.
+- **Bike Lab:** `https://nickkostner.github.io/stride-lab/bike/`. Tracks aero / base bars / sitting up / standing on the trainer from an iPhone side-on. The ride's position timeline goes to Temper (share sheet, AirDrop), which lines it up with the ride's power. Plan and details: `docs/specs/bike-lab.md` in temper.
+
+All are published by `.github/workflows/pages.yml` on every push to `main`.
 
 
 ## Live mode
@@ -113,5 +117,8 @@ Not tested:
 - `web/upload/index.html`: upload analyser and Ochy teardown
 - `web/index.html`: TV app (sources, live loop, tiles, cues, metronome, summary)
 - `web/gait.js`: analysis core, shared with the upload version. Runs in Node for tests.
+- `web/bike/index.html`: Bike Lab phone page (camera, calibration, ride recording, export)
+- `web/aero.js`: Bike Lab position classifier. Runs in Node for tests: `node --test 'form-lab/test/*.test.cjs'`
+- `test/`: Node tests, kept outside `web/` so they aren't deployed
 - `docker-compose.yml`, `nginx.conf`, `mediamtx.yml`, `.env.example`: camera bridge and web server
 - `fetch-assets.sh`: downloads the MediaPipe Tasks Vision 0.10.14 runtime and the Pose Landmarker models
